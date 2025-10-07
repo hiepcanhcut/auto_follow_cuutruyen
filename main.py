@@ -220,16 +220,9 @@ def main():
         driver.quit()
 
 if __name__ == "__main__":
-    print("="*60)
-    print("🎯 CUUTRUYEN AUTO FOLLOW - ULTRA TURBO MODE")
-    print("="*60)
-    print("⚡ Tốc độ: ~2-3s/truyện (nhanh nhất có thể)")
-    print("⏱️  199 truyện: ~6-8 phút")
-    print("🚀 Tối ưu JavaScript, giảm delay tối đa")
-    print("="*60)
-    
     proceed = input("\n👉 Bắt đầu? (yes/no): ")
     if proceed.lower() in ["yes", "y"]:
         main()
     else:
         print("❌ Hủy")
+
