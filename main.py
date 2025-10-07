@@ -8,8 +8,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 import os
 
-USERNAME = os.getenv("CUUTRUYEN_USERNAME") 
-PASSWORD = os.getenv("CUUTRUYEN_PASSWORD") 
+USERNAME = "user"
+PASSWORD = "password"
 TRUYEN_FILE = "data.txt"
 
 def login_manual(driver):
@@ -17,138 +17,114 @@ def login_manual(driver):
     print("👉 Đăng nhập vào cuutruyen.net")
     print("="*60)
     driver.get("https://cuutruyen.net/")
-    time.sleep(3)
+    time.sleep(2)  
     input("\n👉 Nhấn Enter sau khi đã đăng nhập...")
     return True
 
 def search_and_click_result(driver, manga_name):
-    """Tìm kiếm và click vào dropdown result"""
+    """Tìm kiếm và click vào dropdown result - TURBO VERSION"""
     print(f"\n[🔍] Tìm: {manga_name}")
     
     try:
         # Về trang chủ
         driver.get("https://cuutruyen.net/")
-        time.sleep(1.5)  # Giảm từ 3s → 1.5s
+        time.sleep(1) 
         
-        # Tìm input search bằng JS (đơn giản hơn)
         search_input = driver.execute_script("""
-            const inputs = document.querySelectorAll('input');
-            for (let input of inputs) {
+            // Tìm input có placeholder chứa từ khóa tìm kiếm
+            const inputs = Array.from(document.querySelectorAll('input'));
+            const searchInput = inputs.find(input => {
                 const placeholder = (input.placeholder || '').toLowerCase();
-                if (placeholder.includes('tìm') || placeholder.includes('search')) {
-                    return input;
-                }
-            }
-            return null;
+                return placeholder.includes('tìm') || placeholder.includes('search');
+            });
+            return searchInput;
         """)
         
         if not search_input:
             print("[ERROR] Không tìm thấy search box")
             return False
         
-        # Clear và nhập text bằng JS
-        driver.execute_script("arguments[0].value = '';", search_input)
-        driver.execute_script(f"arguments[0].value = '{manga_name}';", search_input)
-        
-        # Trigger input event
         driver.execute_script("""
+            arguments[0].value = arguments[1];
             arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
-        """, search_input)
+            arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
+        """, search_input, manga_name)
         
-        print("[OK] Đã nhập")
+        time.sleep(1.2) 
         
-        # Đợi dropdown xuất hiện (2 giây thay vì 3)
-        time.sleep(2)
-        
-        # Tìm kết quả trong dropdown
-        # Dựa vào ảnh: có div chứa text "Sự Quyến Rũ Của 2.5D"
-        results = driver.execute_script("""
-            // Tìm tất cả link có href chứa /mangas/
-            const links = document.querySelectorAll('a[href*="/mangas/"]');
-            const results = [];
+        success = driver.execute_script("""
+            // Tìm tất cả link truyện visible
+            const links = Array.from(document.querySelectorAll('a[href*="/mangas/"]'));
+            const visibleLinks = links.filter(link => {
+                return link.offsetParent !== null && 
+                       link.getBoundingClientRect().top < 400;
+            });
             
-            for (let link of links) {
-                // Chỉ lấy link visible
-                if (link.offsetParent !== null) {
-                    const rect = link.getBoundingClientRect();
-                    // Chỉ lấy link ở phần trên của trang (dropdown)
-                    if (rect.top < 400) {
-                        results.push({
-                            href: link.href,
-                            text: link.textContent.trim(),
-                            element: link
-                        });
-                    }
-                }
+            if (visibleLinks.length > 0) {
+                const firstLink = visibleLinks[0];
+                firstLink.click();
+                return true;
             }
-            
-            return results;
+            return false;
         """)
         
-        if not results:
-            print("[ERROR] Không tìm thấy")
+        if success:
+            time.sleep(0.8)  # Giảm từ 1.5s → 0.8s
+            return True
+        else:
+            print("[ERROR] Không tìm thấy kết quả phù hợp")
             return False
         
-        print(f"[OK] Tìm thấy {len(results)} kết quả")
-        
-        # Lấy URL của kết quả đầu tiên
-        first_url = results[0]['href']
-        
-        # Navigate đến URL
-        driver.get(first_url)
-        time.sleep(1.5)  # Giảm từ 3s → 1.5s
-        
-        return True
-        
     except Exception as e:
-        print(f"[ERROR] Lỗi: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[ERROR] Lỗi tìm kiếm: {e}")
         return False
 
 def follow_manga(driver):
-    """Click nút THEO DÕI TRUYỆN"""
+    """Click nút THEO DÕI TRUYỆN - TURBO VERSION"""
     try:
-        url = driver.current_url
-        
-        if '/mangas/' not in url:
+        if '/mangas/' not in driver.current_url:
             return False
         
-        time.sleep(1)  # Giảm từ 2s → 1s
-        
-        # Tìm nút theo dõi
-        follow_btn = driver.execute_script("""
-            const buttons = document.querySelectorAll('button');
-            for (let btn of buttons) {
+        result = driver.execute_script("""
+            // Tìm tất cả button và filter nhanh
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const followBtn = buttons.find(btn => {
                 const text = btn.textContent.toLowerCase();
-                if (text.includes('theo dõi') && btn.offsetParent !== null) {
-                    return btn;
-                }
+                return text.includes('theo dõi') && btn.offsetParent !== null;
+            });
+            
+            if (followBtn) {
+                followBtn.scrollIntoView({block: 'center', behavior: 'instant'});
+                followBtn.click();
+                return true;
             }
-            return null;
+            return false;
         """)
         
-        if follow_btn:
-            # Scroll và click
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", follow_btn)
-            time.sleep(0.3)  # Giảm từ 0.5s → 0.3s
-            driver.execute_script("arguments[0].click();", follow_btn)
-            
-            print(f"✅")
-            time.sleep(0.5)  # Giảm từ 1s → 0.5s
+        if result:
+            print("✅")
+            time.sleep(0.3)
             return True
         else:
             print("[WARNING] Không tìm thấy nút 'THEO DÕI'")
             return False
             
     except Exception as e:
-        print(f"[ERROR] Lỗi: {e}")
+        print(f"[ERROR] Lỗi follow: {e}")
         return False
 
 def main():
     options = webdriver.ChromeOptions()
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+    
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-extensions')
+    options.add_argument('--dns-prefetch-disable')
+    options.add_argument('--disable-gpu')
+    
     prefs = {"profile.default_content_setting_values.notifications": 2}
     options.add_experimental_option("prefs", prefs)
     
@@ -157,6 +133,10 @@ def main():
         service=Service(ChromeDriverManager().install()),
         options=options
     )
+    
+    driver.set_page_load_timeout(15)
+    driver.set_script_timeout(15)
+    
     driver.maximize_window()
     
     try:
@@ -183,15 +163,17 @@ def main():
         failed = []
         
         print(f"\n🎬 Bắt đầu follow {len(test_list)} truyện...")
-        print("💡 TIP: Bạn có thể Ctrl+C để dừng bất cứ lúc nào\n")
+        print("⚡ TURBO MODE: ~2-3s/truyện\n")
+        
+        start_time = time.time()
         
         for i, manga in enumerate(test_list, 1):
-            print(f"[{i}/{len(test_list)}] {manga[:40]}...")
+            print(f"[{i}/{len(test_list)}] {manga[:40]}...", end=" ", flush=True)
             
             if search_and_click_result(driver, manga):
                 if follow_manga(driver):
                     success += 1
-                    print(f"✅ {success}/{i}")
+                    print(f"✅")
                 else:
                     failed.append(manga)
                     print(f"❌")
@@ -199,49 +181,55 @@ def main():
                 failed.append(manga)
                 print(f"⏭️")
             
-            # Delay giảm từ 2s → 1s
-            time.sleep(1)
+            if i < len(test_list): 
+                time.sleep(0.5) 
         
-        # Report
+        total_time = time.time() - start_time
+        avg_time = total_time / len(test_list)
+        
         print(f"\n{'='*60}")
-        print(f"🎉 HOÀN TẤT")
+        print(f"🎉 HOÀN TẤT - TURBO MODE")
         print(f"{'='*60}")
         print(f"✅ Thành công: {success}/{len(test_list)}")
         print(f"❌ Thất bại: {len(failed)}")
         print(f"📊 Tỷ lệ: {success/len(test_list)*100:.1f}%")
+        print(f"⏱️  Thời gian: {total_time:.1f}s")
+        print(f"🚀 Tốc độ: {avg_time:.1f}s/truyện")
         
-        if failed and len(failed) <= 15:
+        if failed and len(failed) <= 20:
             print(f"\n❌ Danh sách thất bại:")
-            for m in failed:
+            for m in failed[:20]: 
                 print(f"  - {m}")
+            if len(failed) > 20:
+                print(f"  ... và {len(failed) - 20} truyện khác")
         
         if success == len(test_list):
             print("\n🎊 PERFECT! Tất cả đều thành công!")
-            print("👉 Bạn có thể chạy lại với 'all' để follow hết!")
+            
+        if confirm.lower() != 'all':
+            estimated_total = (avg_time * len(manga_list)) / 60
+            print(f"\n📈 Ước tính toàn bộ {len(manga_list)} truyện: {estimated_total:.1f} phút")
         
     except KeyboardInterrupt:
         print(f"\n\n⏸️ Đã dừng bởi người dùng")
         print(f"✅ Đã follow: {success} truyện")
     except Exception as e:
         print(f"\n❌ Lỗi không mong muốn: {e}")
-        import traceback
-        traceback.print_exc()
     finally:
         input("\n👉 Nhấn Enter để đóng Chrome...")
         driver.quit()
 
 if __name__ == "__main__":
     print("="*60)
-    print("🎯 CUUTRUYEN AUTO FOLLOW - TURBO MODE")
+    print("🎯 CUUTRUYEN AUTO FOLLOW - ULTRA TURBO MODE")
     print("="*60)
-    print("⚡ Tốc độ: ~3-4s/truyện (nhanh gấp đôi)")
-    print("⏱️  199 truyện: ~10-12 phút")
-    print("✅ Giảm delay, tối ưu output")
+    print("⚡ Tốc độ: ~2-3s/truyện (nhanh nhất có thể)")
+    print("⏱️  199 truyện: ~6-8 phút")
+    print("🚀 Tối ưu JavaScript, giảm delay tối đa")
     print("="*60)
     
     proceed = input("\n👉 Bắt đầu? (yes/no): ")
     if proceed.lower() in ["yes", "y"]:
         main()
     else:
-
         print("❌ Hủy")
