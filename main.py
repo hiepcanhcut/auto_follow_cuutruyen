@@ -8,8 +8,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 import os
 
-USERNAME = "ledanghiep123" #os.getenv("CUUTRUYEN_USERNAME") 
-PASSWORD = "hiep3apro" #os.getenv("CUUTRUYEN_PASSWORD") 
+USERNAME = os.getenv("CUUTRUYEN_USERNAME") 
+PASSWORD = os.getenv("CUUTRUYEN_PASSWORD") 
 TRUYEN_FILE = "data.txt"
 
 def login_manual(driver):
@@ -243,4 +243,5 @@ if __name__ == "__main__":
     if proceed.lower() in ["yes", "y"]:
         main()
     else:
+
         print("❌ Hủy")
